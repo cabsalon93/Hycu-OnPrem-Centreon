@@ -386,7 +386,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Credits
 
 - **Original Author:** christophe.Absalon@hycu.com
-- **Policy Compliance:** jeremie.hugo@ansam.ch
 - **v2.0-2.1 Enhancements:** Major improvements and new features
 
 ## 📞 Support
