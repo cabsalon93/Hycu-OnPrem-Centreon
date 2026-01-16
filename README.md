@@ -281,7 +281,7 @@ retry_interval=60
 max_check_attempts=3
 ```
 
-See [CENTREON_HOWTO.md](docs/CENTREON_HOWTO.md) for complete integration guide.
+See [CENTREON_HOWTO.md](CENTREON_HOWTO.md) for complete integration guide.
 
 ## 📊 Performance Data
 
