@@ -76,8 +76,8 @@ cd hycu-monitoring-plugin
 # Make executable
 chmod +x check_hycu_vm_backup_v2.1.py
 
-# Create symbolic link (Centreon/Nagios)
-sudo ln -s $(pwd)/check_hycu_vm_backup_v2.1.py /usr/lib/nagios/plugins/
+# Copy plugin (Centreon/Nagios)
+cp -p $(pwd)/check_hycu_vm_backup_v2.1.py /usr/lib/nagios/plugins/
 ```
 
 ### Method 3: Manual Copy
@@ -162,7 +162,7 @@ Create a configuration file for easy testing:
 # Create .env file
 cat > ~/.hycu_monitoring.env << 'EOF'
 HYCU_HOST=hycu.company.com
-HYCU_TOKEN=cjd0NnEybGRwMDYwdjYyaWZ1bzV0aXBkN3ZlZA==
+HYCU_TOKEN=cjd0NnEybGRwMDYwdjYyaWZ1bzV0aXBkN93270==
 EOF
 
 # Secure the file
