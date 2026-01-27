@@ -767,6 +767,7 @@ def check_jobs(host: str, headers: dict, timeout: int, period_hours: int,
             task_name = job.get('taskName', 'Unknown task')
             
             # Count by status
+            # IMPORTANT: HYCU API returns 'EXECUTING' for running jobs, not just 'RUNNING'
             if status == 'OK':
                 stats['ok'] += 1
             elif status == 'WARNING':
@@ -783,10 +784,14 @@ def check_jobs(host: str, headers: dict, timeout: int, period_hours: int,
                     'status': status,
                     'type': job_type
                 })
-            elif status in ['RUNNING', 'QUEUED', 'PENDING']:
+            elif status in ['RUNNING', 'QUEUED', 'PENDING', 'ACTIVE', 'IN_PROGRESS', 'EXECUTING', 'SCHEDULED']:
                 stats['running'] += 1
+                if verbose:
+                    print(f"DEBUG: Found running job - Status: {status}, Task: {task_name}")
             else:
                 stats['other'] += 1
+                if verbose:
+                    print(f"DEBUG: Unknown status '{status}' for job: {task_name}")
         
         if verbose:
             print(f"DEBUG: Jobs processed: {len(data['entities'])}")
@@ -822,15 +827,17 @@ def check_jobs(host: str, headers: dict, timeout: int, period_hours: int,
               f"{stats['failed']} failed ({stats['error']} errors, {stats['warning']} warnings), "
               f"{stats['ok']} successful, {stats['running']} running")
     
-    # Performance data for Centreon graphing
+    # Performance data for Centreon graphing (Nagios format)
+    # Format: label=value[UOM];[warn];[crit];[min];[max]
+    # NO SPACES between metrics!
     perfdata = (
         f"|"
-        f"jobs_ok={stats['ok']};;;0; "
-        f"jobs_warning={stats['warning']};;;0; "
-        f"jobs_error={stats['error']};;;0; "
-        f"jobs_failed={stats['failed']};{warning_threshold};{critical_threshold};0; "
-        f"jobs_running={stats['running']};;;0; "
-        f"success_rate={stats['success_rate']:.2f}%;;;0;100"
+        f"jobs_ok={stats['ok']};;;0;"
+        f"jobs_warning={stats['warning']};;;0;"
+        f"jobs_error={stats['error']};;;0;"
+        f"jobs_failed={stats['failed']};{warning_threshold};{critical_threshold};0;"
+        f"jobs_running={stats['running']};;;0;"
+        f"success_rate={stats['success_rate']:.2f}%;{warning_threshold};{critical_threshold};0;100"
     )
     
     output = message + " " + perfdata
