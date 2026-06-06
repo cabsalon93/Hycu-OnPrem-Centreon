@@ -67,14 +67,14 @@ sudo su -
 
 # Download plugin
 cd /usr/lib/nagios/plugins/
-wget https://raw.githubusercontent.com/YOUR_USERNAME/hycu-monitoring-plugin/main/check_hycu_vm_backup_v2.1.py
+wget https://raw.githubusercontent.com/YOUR_USERNAME/hycu-monitoring-plugin/main/check_hycu_vm_backup_v2.2.py
 
 # Set permissions
-chmod 755 check_hycu_vm_backup_v2.1.py
-chown centreon-engine:centreon-engine check_hycu_vm_backup_v2.1.py
+chmod 755 check_hycu_vm_backup_v2.2.py
+chown centreon-engine:centreon-engine check_hycu_vm_backup_v2.2.py
 
 # Verify
-ls -l check_hycu_vm_backup_v2.1.py
+ls -l check_hycu_vm_backup_v2.2.py
 # Expected: -rwxr-xr-x centreon-engine centreon-engine
 ```
 
@@ -82,16 +82,16 @@ ls -l check_hycu_vm_backup_v2.1.py
 
 ```bash
 # From your workstation, copy to Centreon server
-scp check_hycu_vm_backup_v2.1.py centreon@centreon-server:/tmp/
+scp check_hycu_vm_backup_v2.2.py centreon@centreon-server:/tmp/
 
 # SSH to Centreon server
 ssh centreon@centreon-server
 sudo su -
 
 # Move to plugin directory
-mv /tmp/check_hycu_vm_backup_v2.1.py /usr/lib/nagios/plugins/
-chmod 755 /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
-chown centreon-engine:centreon-engine /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+mv /tmp/check_hycu_vm_backup_v2.2.py /usr/lib/nagios/plugins/
+chmod 755 /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
+chown centreon-engine:centreon-engine /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 ```
 
 ### Test Installation
@@ -99,7 +99,7 @@ chown centreon-engine:centreon-engine /usr/lib/nagios/plugins/check_hycu_vm_back
 ```bash
 # Test plugin execution
 su - centreon-engine -s /bin/bash
-/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -h
+/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -h
 
 # Expected output: Plugin help text
 ```
@@ -137,7 +137,7 @@ su - centreon-engine -s /bin/bash
 
 **Usage in commands:**
 ```bash
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t version
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t version
 ```
 
 ### Method 2: Host Custom Macro
@@ -164,7 +164,7 @@ $USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t version
 
 **Usage in commands:**
 ```bash
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t version
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t version
 ```
 
 ### Method 3: Service Custom Macro (Least Recommended)
@@ -187,7 +187,7 @@ Only use if you need different tokens per service.
 Name: check_hycu_version
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t version -T $ARG1$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t version -T $ARG1$
 
 Argument Example:
 ARG1: 100 (timeout in seconds)
@@ -204,7 +204,7 @@ ARG1: 100 (timeout in seconds)
 Name: check_hycu_license
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t license -w $ARG1$ -c $ARG2$ -T $ARG3$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t license -w $ARG1$ -c $ARG2$ -T $ARG3$
 
 Argument Example:
 ARG1: 30 (warning: 30 days before expiration)
@@ -222,7 +222,7 @@ ARG3: 100 (timeout)
 Name: check_hycu_jobs
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t jobs -w $ARG1$ -c $ARG2$ -p $ARG3$ -T $ARG4$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t jobs -w $ARG1$ -c $ARG2$ -p $ARG3$ -T $ARG4$
 
 Argument Example:
 ARG1: 10 (warning: 10 failed jobs)
@@ -239,7 +239,7 @@ ARG4: 100 (timeout)
 Name: check_hycu_unassigned
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t unassigned -w $ARG1$ -c $ARG2$ -T $ARG3$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t unassigned -w $ARG1$ -c $ARG2$ -T $ARG3$
 
 Argument Example:
 ARG1: 5  (warning: 5 unassigned objects)
@@ -255,7 +255,7 @@ ARG3: 100 (timeout)
 Name: check_hycu_vm
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t vm -T $ARG2$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t vm -T $ARG2$
 
 Argument Example:
 ARG1: VM-PROD-01 (VM name)
@@ -272,7 +272,7 @@ ARG2: 100 (timeout)
 Name: check_hycu_policy_advanced
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t policy-advanced -w $ARG2$ -c $ARG3$ -T $ARG4$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t policy-advanced -w $ARG2$ -c $ARG3$ -T $ARG4$
 
 Argument Example:
 ARG1: Production (policy name)
@@ -289,7 +289,7 @@ ARG4: 100 (timeout)
 Name: check_hycu_shares
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t shares -w $ARG1$ -c $ARG2$ -T $ARG3$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t shares -w $ARG1$ -c $ARG2$ -T $ARG3$
 
 Argument Example:
 ARG1: 3  (warning: 3 non-compliant shares)
@@ -305,7 +305,7 @@ ARG3: 100 (timeout)
 Name: check_hycu_buckets
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t buckets -w $ARG1$ -c $ARG2$ -T $ARG3$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t buckets -w $ARG1$ -c $ARG2$ -T $ARG3$
 
 Argument Example:
 ARG1: 2  (warning: 2 non-compliant buckets)
@@ -321,7 +321,7 @@ ARG3: 100 (timeout)
 Name: check_hycu_backup_validation
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t backup-validation -w $ARG1$ -c $ARG2$ -p $ARG3$ -T $ARG4$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t backup-validation -w $ARG1$ -c $ARG2$ -p $ARG3$ -T $ARG4$
 
 Argument Example:
 ARG1: 5  (warning: 5 failed validations)
@@ -338,7 +338,7 @@ ARG4: 100 (timeout)
 Name: check_hycu_port
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -t port -n $ARG1$ -T $ARG2$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -t port -n $ARG1$ -T $ARG2$
 
 Argument Example:
 ARG1: 8443 (port number)
@@ -355,7 +355,7 @@ ARG2: 30 (timeout - max 30s for port checks)
 Name: check_hycu_target
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t target -T $ARG2$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t target -T $ARG2$
 
 Argument Example:
 ARG1: NFS-TARGET-01 (target name)
@@ -370,7 +370,7 @@ ARG2: 100 (timeout)
 Name: check_hycu_manager
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t manager -T $ARG2$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t manager -T $ARG2$
 
 Argument Example:
 ARG1: protected (or "compliance")
@@ -972,17 +972,17 @@ Service Group: HYCU-VMs
 **Solutions:**
 ```bash
 # Check file exists
-ls -l /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+ls -l /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 
 # Check permissions
-chmod 755 /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+chmod 755 /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 
 # Check ownership
-chown centreon-engine:centreon-engine /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+chown centreon-engine:centreon-engine /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 
 # Test as centreon-engine user
 su - centreon-engine -s /bin/bash
-/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -h
+/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -h
 ```
 
 ### Issue 2: Authentication Failed
@@ -996,7 +996,7 @@ Configuration > Pollers > Resources
 Check $USER10$ value
 
 # Test manually with token
-/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py \
+/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py \
   -l hycu.company.com \
   -a "YOUR_TOKEN" \
   -t version \
@@ -1079,10 +1079,10 @@ cat /etc/centreon-engine/commands.cfg | grep check_hycu
 **Solutions:**
 ```bash
 # Check Python syntax
-python3 -m py_compile /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+python3 -m py_compile /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 
 # Test command manually
-/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t TYPE -v
+/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t TYPE -v
 
 # Check logs
 tail -f /var/log/centreon-engine/centengine.log
@@ -1098,7 +1098,7 @@ Enable verbose output for troubleshooting:
 
 ```bash
 # Add -v flag to command temporarily
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t jobs -w 10 -c 20 -p 24 -v
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t jobs -w 10 -c 20 -p 24 -v
 
 # Check service output in Centreon UI
 Monitoring > Services > Select service
@@ -1125,10 +1125,10 @@ When asking for help, provide:
 
 ```bash
 # Test version check
-/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t version
+/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t version
 
 # Test with verbose
-/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t jobs -w 10 -c 20 -v
+/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t jobs -w 10 -c 20 -v
 
 # Reload Centreon Engine
 systemctl reload centengine
@@ -1143,7 +1143,7 @@ Monitoring > Services > Select service
 ### Useful Paths
 
 ```
-Plugin: /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+Plugin: /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 Config: /etc/centreon-engine/
 Logs: /var/log/centreon-engine/centengine.log
 Resources: Configuration > Pollers > Resources

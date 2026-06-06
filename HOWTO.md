@@ -24,9 +24,9 @@
 
 ### Python Packages
 
-The plugin uses only standard Python libraries:
-- `requests` (usually pre-installed)
-- `json`, `sys`, `socket`, `datetime`, `optparse`, `urllib3`
+The plugin needs one external library, `requests` (which bundles `urllib3`):
+- External: `requests` (often pre-installed; pulls in `urllib3`)
+- Standard library: `json`, `sys`, `socket`, `datetime`, `argparse`
 
 If `requests` is missing:
 
@@ -55,13 +55,13 @@ pip3 install requests
 
 ```bash
 # Download the script
-wget https://raw.githubusercontent.com/YOUR_USERNAME/hycu-monitoring-plugin/main/check_hycu_vm_backup_v2.1.py
+wget https://raw.githubusercontent.com/YOUR_USERNAME/hycu-monitoring-plugin/main/check_hycu_vm_backup_v2.2.py
 
 # Make executable
-chmod +x check_hycu_vm_backup_v2.1.py
+chmod +x check_hycu_vm_backup_v2.2.py
 
 # Move to plugin directory (Centreon/Nagios)
-sudo mv check_hycu_vm_backup_v2.1.py /usr/lib/nagios/plugins/
+sudo mv check_hycu_vm_backup_v2.2.py /usr/lib/nagios/plugins/
 ```
 
 ### Method 2: Git Clone
@@ -74,18 +74,18 @@ git clone https://github.com/YOUR_USERNAME/hycu-monitoring-plugin.git
 cd hycu-monitoring-plugin
 
 # Make executable
-chmod +x check_hycu_vm_backup_v2.1.py
+chmod +x check_hycu_vm_backup_v2.2.py
 
 # Copy plugin (Centreon/Nagios)
-cp -p $(pwd)/check_hycu_vm_backup_v2.1.py /usr/lib/nagios/plugins/
+cp -p $(pwd)/check_hycu_vm_backup_v2.2.py /usr/lib/nagios/plugins/
 ```
 
 ### Method 3: Manual Copy
 
-1. Download `check_hycu_vm_backup_v2.1.py` from GitHub
+1. Download `check_hycu_vm_backup_v2.2.py` from GitHub
 2. Copy to your monitoring server
 3. Place in `/usr/lib/nagios/plugins/` or equivalent
-4. Set execute permissions: `chmod +x check_hycu_vm_backup_v2.1.py`
+4. Set execute permissions: `chmod +x check_hycu_vm_backup_v2.2.py`
 
 ### Verify Installation
 
@@ -95,10 +95,10 @@ python3 --version
 # Expected: Python 3.7.x or higher
 
 # Test plugin help
-python3 /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -h
+python3 /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -h
 
 # Verify script is executable
-ls -l /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+ls -l /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 # Expected: -rwxr-xr-x (executable)
 ```
 
@@ -133,7 +133,7 @@ cjd0NnEybGRwMDYwdjYyaWZ1bzV0aXBkN3ZlZA==
 
 ```bash
 # Test with version check (no specific permissions needed)
-python3 check_hycu_vm_backup_v2.1.py \
+python3 check_hycu_vm_backup_v2.2.py \
   -l your-hycu-host.com \
   -a "YOUR_TOKEN_HERE" \
   -t version
@@ -180,19 +180,19 @@ source ~/.hycu_monitoring.env
 
 # Test basic checks
 echo "Testing version..."
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -a $HYCU_TOKEN -t version
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -a $HYCU_TOKEN -t version
 
 echo "Testing port..."
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -t port -n 8443
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -t port -n 8443
 
 echo "Testing license..."
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -a $HYCU_TOKEN -t license -w 30 -c 7
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -a $HYCU_TOKEN -t license -w 30 -c 7
 
 echo "Testing jobs..."
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -a $HYCU_TOKEN -t jobs -w 5 -c 10
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -a $HYCU_TOKEN -t jobs -w 5 -c 10
 
 echo "Testing unassigned..."
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -a $HYCU_TOKEN -t unassigned -w 5 -c 10
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -a $HYCU_TOKEN -t unassigned -w 5 -c 10
 ```
 
 ---
@@ -210,7 +210,7 @@ Create a comprehensive test script:
 # Configuration
 HYCU_HOST="hycu.company.com"
 HYCU_TOKEN="YOUR_TOKEN"
-PLUGIN="/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py"
+PLUGIN="/usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py"
 
 echo "========================================="
 echo "HYCU Monitoring Plugin - Test Suite"
@@ -295,11 +295,11 @@ chmod +x test_all_checks.sh
 ssh root@centreon-server
 
 # Copy plugin
-scp check_hycu_vm_backup_v2.1.py root@centreon-server:/usr/lib/nagios/plugins/
+scp check_hycu_vm_backup_v2.2.py root@centreon-server:/usr/lib/nagios/plugins/
 
 # Set permissions
-chmod +x /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
-chown centreon-engine:centreon-engine /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+chmod +x /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
+chown centreon-engine:centreon-engine /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 ```
 
 ### Step 2: Store API Token Securely
@@ -334,7 +334,7 @@ Go to **Configuration** > **Commands** > **Checks**
 Name: check_hycu_vm
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t vm
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t vm
 ```
 
 #### Command 2: check_hycu_jobs
@@ -343,7 +343,7 @@ $USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -n "$ARG1$" -t
 Name: check_hycu_jobs
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t jobs -w $ARG1$ -c $ARG2$ -p $ARG3$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t jobs -w $ARG1$ -c $ARG2$ -p $ARG3$
 ```
 
 #### Command 3: check_hycu_license
@@ -352,7 +352,7 @@ $USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t jobs -w $AR
 Name: check_hycu_license
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t license -w $ARG1$ -c $ARG2$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t license -w $ARG1$ -c $ARG2$
 ```
 
 #### Command 4: check_hycu_unassigned
@@ -361,7 +361,7 @@ $USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t license -w 
 Name: check_hycu_unassigned
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t unassigned -w $ARG1$ -c $ARG2$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER10$ -t unassigned -w $ARG1$ -c $ARG2$
 ```
 
 #### Command 5: check_hycu_port
@@ -370,7 +370,7 @@ $USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER10$ -t unassigned 
 Name: check_hycu_port
 Type: Check
 Command Line:
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -t port -n $ARG1$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -t port -n $ARG1$
 ```
 
 ### Step 4: Create Service Templates
@@ -470,13 +470,13 @@ Retry Interval: 15
 
 ```bash
 # Production (low tolerance)
-python3 check_hycu_vm_backup_v2.1.py -l hycu-prod -a $TOKEN -t jobs -w 5 -c 10
+python3 check_hycu_vm_backup_v2.2.py -l hycu-prod -a $TOKEN -t jobs -w 5 -c 10
 
 # Development (high tolerance)
-python3 check_hycu_vm_backup_v2.1.py -l hycu-dev -a $TOKEN -t jobs -w 20 -c 50
+python3 check_hycu_vm_backup_v2.2.py -l hycu-dev -a $TOKEN -t jobs -w 20 -c 50
 
 # DR Site (medium tolerance)
-python3 check_hycu_vm_backup_v2.1.py -l hycu-dr -a $TOKEN -t jobs -w 10 -c 25
+python3 check_hycu_vm_backup_v2.2.py -l hycu-dr -a $TOKEN -t jobs -w 10 -c 25
 ```
 
 ### Scheduled Tasks (Cron)
@@ -489,10 +489,10 @@ crontab -e
 
 # Add checks
 # Check license daily at 8am
-0 8 * * * /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -l hycu.local -a TOKEN -t license -w 30 -c 7 | mail -s "HYCU License" admin@company.com
+0 8 * * * /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -l hycu.local -a TOKEN -t license -w 30 -c 7 | mail -s "HYCU License" admin@company.com
 
 # Check jobs every hour
-0 * * * * /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py -l hycu.local -a TOKEN -t jobs -w 10 -c 20 >> /var/log/hycu-checks.log
+0 * * * * /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py -l hycu.local -a TOKEN -t jobs -w 10 -c 20 >> /var/log/hycu-checks.log
 ```
 
 ### Multiple HYCU Controllers
@@ -506,7 +506,7 @@ TOKEN="YOUR_TOKEN"
 
 for controller in "${CONTROLLERS[@]}"; do
     echo "Checking $controller..."
-    /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py \
+    /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py \
         -l $controller \
         -a $TOKEN \
         -t version
@@ -535,7 +535,7 @@ chmod +x /usr/local/bin/check_all_hycu.sh
 **Test:**
 ```bash
 # Verbose mode shows HTTP status
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t version -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t version -v
 ```
 
 #### Issue 2: Connection Timeout
@@ -551,7 +551,7 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t version -v
 **Test:**
 ```bash
 # Test port separately
-python3 check_hycu_vm_backup_v2.1.py -l HOST -t port -n 8443 -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -t port -n 8443 -v
 ```
 
 #### Issue 3: Object Not Found
@@ -567,7 +567,7 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -t port -n 8443 -v
 **Test:**
 ```bash
 # List all VMs (use manager check)
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n protected -t manager -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n protected -t manager -v
 ```
 
 #### Issue 4: SSL Certificate Errors
@@ -596,7 +596,7 @@ which python
 alias python3=/usr/bin/python3.7
 
 # Or use full path
-/usr/bin/python3.7 check_hycu_vm_backup_v2.1.py ...
+/usr/bin/python3.7 check_hycu_vm_backup_v2.2.py ...
 ```
 
 ### Debug Checklist
@@ -608,19 +608,19 @@ When troubleshooting, run through this checklist:
 python3 --version
 
 # 2. Check script exists and is executable
-ls -l /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.1.py
+ls -l /usr/lib/nagios/plugins/check_hycu_vm_backup_v2.2.py
 
 # 3. Test help (verifies script runs)
-python3 check_hycu_vm_backup_v2.1.py -h
+python3 check_hycu_vm_backup_v2.2.py -h
 
 # 4. Test port connectivity (no API needed)
-python3 check_hycu_vm_backup_v2.1.py -l HOST -t port -n 8443 -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -t port -n 8443 -v
 
 # 5. Test version (minimal API call)
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t version -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t version -v
 
 # 6. Test specific check with verbose
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t TYPE -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t TYPE -v
 ```
 
 ### Getting Help

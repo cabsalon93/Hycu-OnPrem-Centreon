@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 HYCU Monitoring Plugin - Comprehensive Test Suite
-Tests all 16 check types with customizable configuration
+Tests the main HYCU check types with customizable configuration
 """
 
 import subprocess
@@ -72,7 +72,7 @@ def load_env():
     config = {
         'HYCU_HOST': os.getenv('HYCU_HOST', ''),
         'HYCU_TOKEN': os.getenv('HYCU_TOKEN', ''),
-        'SCRIPT_PATH': os.getenv('SCRIPT_PATH', './check_hycu_vm_backup_v2.1.py'),
+        'SCRIPT_PATH': os.getenv('SCRIPT_PATH', './check_hycu_vm_backup_v2.2.py'),
         'VERBOSE': os.getenv('VERBOSE', 'false').lower() == 'true',
         'TIMEOUT': os.getenv('TIMEOUT', '100'),
         'TEST_VM_NAME': os.getenv('TEST_VM_NAME', ''),
@@ -136,7 +136,7 @@ def validate_config(config):
 def main():
     """Main test suite execution"""
     
-    print_header("HYCU Monitoring Plugin - Test Suite v2.1")
+    print_header("HYCU Monitoring Plugin - Test Suite v2.2")
     print(f"Test started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     
     # Load configuration

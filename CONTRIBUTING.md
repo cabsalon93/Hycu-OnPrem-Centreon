@@ -68,7 +68,7 @@ pip3 install pytest
 python3 test_hycu_checks.py
 
 # Test manually
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -a $HYCU_TOKEN -t version -v
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -a $HYCU_TOKEN -t version -v
 ```
 
 ## How to Contribute
@@ -95,7 +95,7 @@ Clear description of what's wrong
 
 **To Reproduce**
 Steps to reproduce:
-1. Run command: `python3 check_hycu_vm_backup_v2.1.py ...`
+1. Run command: `python3 check_hycu_vm_backup_v2.2.py ...`
 2. See error: ...
 
 **Expected behavior**
@@ -130,7 +130,7 @@ How it could work (API endpoints, parameters, output)
 
 **Example Usage**
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t new-type -n NAME
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t new-type -n NAME
 ```
 
 **Expected Output**
@@ -161,7 +161,7 @@ def check_something(host: str, token: str, timeout: int) -> Tuple[int, str]:
 
 # Constants in UPPERCASE
 EXIT_OK = 0
-FIELD_NAME = 'vmName'
+EXIT_WARNING = 1
 
 # Functions in snake_case
 def check_vm_backup():
@@ -271,13 +271,13 @@ Every new check type needs:
 
 ```bash
 # Test new check type
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -a $HYCU_TOKEN -t new-type -v
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -a $HYCU_TOKEN -t new-type -v
 
 # Test with thresholds
-python3 check_hycu_vm_backup_v2.1.py -l $HYCU_HOST -a $HYCU_TOKEN -t new-type -w 5 -c 10
+python3 check_hycu_vm_backup_v2.2.py -l $HYCU_HOST -a $HYCU_TOKEN -t new-type -w 5 -c 10
 
 # Test error handling (wrong host)
-python3 check_hycu_vm_backup_v2.1.py -l invalid-host -a $HYCU_TOKEN -t new-type
+python3 check_hycu_vm_backup_v2.2.py -l invalid-host -a $HYCU_TOKEN -t new-type
 ```
 
 ### Automated Testing
@@ -322,13 +322,13 @@ git checkout -b feature/new-check-type
 
 ```bash
 # Make your changes
-nano check_hycu_vm_backup_v2.1.py
+nano check_hycu_vm_backup_v2.2.py
 
 # Test thoroughly
 python3 test_hycu_checks.py
 
 # Commit with clear message
-git add check_hycu_vm_backup_v2.1.py
+git add check_hycu_vm_backup_v2.2.py
 git commit -m "Add new-type check for monitoring XYZ
 
 - Implements new-type check using /rest/v1.0/endpoint
@@ -375,7 +375,7 @@ Brief description of what this PR does
 - Tested on HYCU version: 5.2.0
 - Test commands run:
   ```bash
-  python3 check_hycu_vm_backup_v2.1.py ...
+  python3 check_hycu_vm_backup_v2.2.py ...
   ```
 - Test results: All passed
 

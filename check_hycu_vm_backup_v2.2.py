@@ -1,13 +1,26 @@
 #!/usr/bin/env python3
 ######################################
 ## HYCU script to check backup status using HYCU REST API
-## Version 2.1 - Complete monitoring suite with 16 check types
+## Version 2.2 - Complete monitoring suite with 15 check types
 ## Original author: christophe.Absalon@hycu.com
 ## Policy compliance check: jeremie.hugo@ansam.ch
 ## Major improvements and new features: 2025-2026
 ##
 ## Compatible with: Centreon, Nagios, Icinga, and other monitoring tools
 ## Tested with: Python 3.7+ on HYCU 4.9+, 5.x
+##
+## Version 2.2 Changes:
+## - Fixed: jobs/backup-validation now filter the -p period client-side
+##          (the HYCU API ignores startTime/endTime query params)
+## - Fixed: full pagination of all list endpoints (no more silent truncation
+##          past 1000/10000 objects)
+## - Fixed: unassigned check no longer reuses stale shares data for buckets
+## - Fixed: license check reports UNKNOWN (not a false CRITICAL) when daysLeft
+##          is missing; derives it from expirationDate when possible
+## - Fixed: port check no longer requires an API token (TCP probe only)
+## - Improved: unified single-object response handling (entities[] or direct)
+## - Improved: success_rate perfdata no longer carries failed-count thresholds
+## - Improved: standardized perfdata spacing, removed dead code / bare excepts
 ##
 ## Version 2.1 Changes:
 ## - Added: license check (expiration monitoring)
@@ -17,46 +30,42 @@
 ## - Added: buckets check (object storage monitoring)
 ## - Added: port check (TCP connectivity)
 ## - Added: unassigned check (objects without policy)
-## - Total: 16 check types available
+## - Total: 15 check types available
 ##
 ## Usage examples:
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -n VM-NAME -t vm
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -n TARGET-NAME -t target
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -n POLICY-NAME -t policy-advanced -w 5 -c 10
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -t jobs -w 5 -c 10 -p 24
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -t license -w 30 -c 7
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -t version
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -t shares -w 3 -c 5
-##   python3 check_hycu_vm_backup_v2.1.py -l 192.168.1.100 -t port -n 8443
-##   python3 check_hycu_vm_backup_v2.1.py -a "TOKEN" -l 192.168.1.100 -t unassigned -w 5 -c 10
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -n VM-NAME -t vm
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -n TARGET-NAME -t target
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -n POLICY-NAME -t policy-advanced -w 5 -c 10
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -t jobs -w 5 -c 10 -p 24
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -t license -w 30 -c 7
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -t version
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -t shares -w 3 -c 5
+##   python3 check_hycu_vm_backup_v2.2.py -l 192.168.1.100 -t port -n 8443
+##   python3 check_hycu_vm_backup_v2.2.py -a "TOKEN" -l 192.168.1.100 -t unassigned -w 5 -c 10
 ####################################
 
 import requests
 import json
 import urllib3
-import optparse
+import argparse
 import sys
 import socket
 from datetime import datetime, timedelta
-from typing import Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 
 # Remove SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Reuse a single HTTP connection (keep-alive) across all API calls. Checks like
+# 'unassigned' hit several endpoints and paginated checks issue many requests;
+# a shared Session avoids re-doing the TLS handshake every time.
+SESSION = requests.Session()
 
 # Exit codes for monitoring tools
 EXIT_OK = 0
 EXIT_WARNING = 1
 EXIT_CRITICAL = 2
 EXIT_UNKNOWN = 3
-
-# API field constants for consistency
-FIELD_PROTECTION_GROUP_NAME = 'protectionGroupName'
-FIELD_VM_NAME = 'vmName'
-FIELD_SHARE_NAME = 'shareName'
-FIELD_APP_NAME = 'name'
-FIELD_VG_NAME = 'name'
-FIELD_PROTOCOL_LIST = 'protocolTypeList'
-FIELD_COMPLIANCY_STATUS = 'compliancyStatus'
 
 # Check type categories
 CHECK_TYPES = {
@@ -79,51 +88,53 @@ class HycuAPIError(Exception):
 
 def parse_arguments():
     """Parse command line arguments"""
-    parser = optparse.OptionParser(
-        usage='%prog -a <api_token> -l <hycu_host> -n <object_name> -t <type>',
+    parser = argparse.ArgumentParser(
+        usage='%(prog)s -a <api_token> -l <hycu_host> -n <object_name> -t <type>',
         description='Monitor HYCU backup status via REST API'
     )
-    parser.add_option('-a', dest='apitoken', help='HYCU API token (required for most types)')
-    parser.add_option('-l', dest='host', help='HYCU host IP or FQDN (required)')
-    parser.add_option('-n', dest='vmtarget', help='Object name to check (required for some types)')
-    parser.add_option('-t', dest='scantype', 
-                     help='Check type (required). Available types: '
-                          'OBJECTS: vm, vmid, target, archive | '
-                          'POLICIES: policy, policy-advanced | '
-                          'GLOBAL: manager, jobs, license, version | '
-                          'STORAGE: shares, buckets | '
-                          'VALIDATION: backup-validation, unassigned | '
-                          'NETWORK: port')
-    parser.add_option('-T', dest='timeout', type='int', default=100,
-                     help='API request timeout in seconds (default: 100)')
-    parser.add_option('-v', dest='verbose', action='store_true', default=False,
-                     help='Verbose mode for debugging')
-    
+    parser.add_argument('-a', '--token', dest='apitoken', help='HYCU API token (required for most types)')
+    parser.add_argument('-l', '--host', dest='host', help='HYCU host IP or FQDN (required)')
+    parser.add_argument('-n', '--name', dest='vmtarget', help='Object name to check (required for some types)')
+    parser.add_argument('-t', '--type', dest='scantype',
+                        help='Check type (required). Available types: '
+                             'OBJECTS: vm, vmid, target, archive | '
+                             'POLICIES: policy, policy-advanced | '
+                             'GLOBAL: manager, jobs, license, version | '
+                             'STORAGE: shares, buckets | '
+                             'VALIDATION: backup-validation, unassigned | '
+                             'NETWORK: port')
+    parser.add_argument('-T', '--timeout', dest='timeout', type=int, default=100,
+                        help='API request timeout in seconds (default: 100)')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=False,
+                        help='Verbose mode for debugging')
+
     # Thresholds options (used by: jobs, policy-advanced, license, backup-validation, shares, buckets)
-    parser.add_option('-w', '--warning', dest='warning_threshold', type='int', default=5,
-                     help='Warning threshold (default: 5). For license: days before expiration. For others: failed count')
-    parser.add_option('-c', '--critical', dest='critical_threshold', type='int', default=10,
-                     help='Critical threshold (default: 10). For license: days before expiration. For others: failed count')
-    parser.add_option('-p', '--period', dest='period_hours', type='int', default=24,
-                     help='Time period in hours for jobs and backup-validation checks (default: 24, max: 168)')
-    
-    (options, args) = parser.parse_args()
+    parser.add_argument('-w', '--warning', dest='warning_threshold', type=int, default=5,
+                        help='Warning threshold (default: 5). For license: days before expiration. For others: failed count')
+    parser.add_argument('-c', '--critical', dest='critical_threshold', type=int, default=10,
+                        help='Critical threshold (default: 10). For license: days before expiration. For others: failed count')
+    parser.add_argument('-p', '--period', dest='period_hours', type=int, default=24,
+                        help='Time period in hours for jobs and backup-validation checks (default: 24, max: 168)')
+
+    options = parser.parse_args()
     
     # Validate required arguments (some types don't need -n parameter or API token)
     types_without_vmtarget = ['jobs', 'license', 'version', 'backup-validation', 'shares', 'buckets', 'unassigned']
     types_without_token = ['port']
     
-    if options.scantype in types_without_vmtarget:
-        # For these types, only host is required (and token except for port)
-        if options.scantype in types_without_token:
-            if not all([options.host, options.scantype]):
-                parser.print_help()
-                sys.exit(EXIT_UNKNOWN)
-        else:
-            if not all([options.apitoken, options.host, options.scantype]):
-                parser.print_help()
-                sys.exit(EXIT_UNKNOWN)
-        # Set a dummy value for vmtarget if not provided
+    if options.scantype in types_without_token:
+        # e.g. 'port': no API token needed, only host is required.
+        # -n is optional here (port number, defaults applied later).
+        if not all([options.host, options.scantype]):
+            parser.print_help()
+            sys.exit(EXIT_UNKNOWN)
+        if not options.vmtarget:
+            options.vmtarget = options.scantype
+    elif options.scantype in types_without_vmtarget:
+        # Token + host required; -n not needed (set a dummy value if absent).
+        if not all([options.apitoken, options.host, options.scantype]):
+            parser.print_help()
+            sys.exit(EXIT_UNKNOWN)
         if not options.vmtarget:
             options.vmtarget = options.scantype
     else:
@@ -225,7 +236,7 @@ def api_request(url: str, headers: dict, timeout: int, verbose: bool = False) ->
         if verbose:
             print(f"DEBUG: Calling API: {url}")
         
-        response = requests.get(url, headers=headers, timeout=timeout, verify=False)
+        response = SESSION.get(url, headers=headers, timeout=timeout, verify=False)
         
         if verbose:
             print(f"DEBUG: Status code: {response.status_code}")
@@ -254,7 +265,73 @@ def api_request(url: str, headers: dict, timeout: int, verbose: bool = False) ->
         raise HycuAPIError("Invalid JSON response from API")
 
 
-def get_entity_uuid(host: str, headers: dict, timeout: int, endpoint: str, 
+def fetch_all_entities(host: str, headers: dict, timeout: int, endpoint: str,
+                       page_size: int = 500, verbose: bool = False) -> List[dict]:
+    """
+    Fetch ALL entities from a paginated HYCU endpoint, following pages until
+    every entity reported by 'grandTotalEntityCount' has been retrieved.
+
+    Previous versions requested a single large page (pageSize=1000/10000),
+    silently truncating results on large infrastructures. This walks every
+    page so checks never miss objects.
+
+    Args:
+        host: HYCU host
+        headers: Request headers
+        timeout: Request timeout
+        endpoint: API endpoint (e.g., 'vms', 'targets', 'jobs')
+        page_size: Number of entities per page
+        verbose: Enable verbose output
+
+    Returns:
+        List of all entity dictionaries
+    """
+    entities: List[dict] = []
+    page = 1
+
+    while True:
+        url = (f'https://{host}:8443/rest/v1.0/{endpoint}'
+               f'?pageSize={page_size}&pageNumber={page}')
+        data = api_request(url, headers, timeout, verbose)
+
+        page_entities = data.get('entities', [])
+        entities.extend(page_entities)
+
+        grand_total = data.get('metadata', {}).get('grandTotalEntityCount')
+
+        if verbose:
+            print(f"DEBUG: {endpoint} page {page}: fetched {len(page_entities)} "
+                  f"(total so far {len(entities)}/{grand_total})")
+
+        # Stop when we've collected everything, or the page came back empty
+        # (defensive: avoids an infinite loop if metadata is missing/wrong).
+        if not page_entities:
+            break
+        if grand_total is not None and len(entities) >= grand_total:
+            break
+        if len(page_entities) < page_size:
+            break
+
+        page += 1
+
+    return entities
+
+
+def extract_single_entity(data: dict) -> Optional[dict]:
+    """
+    Normalize a single-object HYCU response.
+
+    The HYCU API may return either a direct object {'name': ...} or an
+    {'entities': [...]} wrapper depending on endpoint/version. This returns
+    the underlying entity dict in both cases (or None if empty).
+    """
+    if isinstance(data, dict) and 'entities' in data:
+        entities = data.get('entities') or []
+        return entities[0] if entities else None
+    return data
+
+
+def get_entity_uuid(host: str, headers: dict, timeout: int, endpoint: str,
                    name: str, name_field: str, verbose: bool = False) -> Optional[str]:
     """
     Generic function to get UUID from entity name
@@ -272,15 +349,15 @@ def get_entity_uuid(host: str, headers: dict, timeout: int, endpoint: str,
     Returns:
         UUID string or None if not found
     """
-    url = f'https://{host}:8443/rest/v1.0/{endpoint}?pageSize=1000&pageNumber=1'
-    data = api_request(url, headers, timeout, verbose)
-    
-    # Build dictionary of name -> uuid
+    all_entities = fetch_all_entities(host, headers, timeout, endpoint, verbose=verbose)
+
+    # Build dictionary of name -> uuid (skip entities missing the name field)
     entity_dict = {
-        entity[name_field]: entity['uuid'] 
-        for entity in data.get('entities', [])
+        entity[name_field]: entity['uuid']
+        for entity in all_entities
+        if name_field in entity and 'uuid' in entity
     }
-    
+
     if verbose:
         print(f"DEBUG: Found {len(entity_dict)} {endpoint}")
     
@@ -357,24 +434,15 @@ def check_target_health(host: str, headers: dict, timeout: int, uuid: str,
     url = f'https://{host}:8443/rest/v1.0/targets/{uuid}'
     data = api_request(url, headers, timeout, verbose)
     
-    # HYCU API can return either:
-    # 1. Direct object: {'name': '...', 'health': '...'}
-    # 2. Entities array: {'entities': [{'name': '...', 'health': '...'}]}
-    
+    # HYCU API can return either a direct object {'name', 'health', ...}
+    # or an {'entities': [...]} wrapper depending on version.
     if verbose:
         print(f"DEBUG: API response keys: {list(data.keys())}")
-    
-    # Check if response has 'entities' array (older API format)
-    if 'entities' in data and len(data['entities']) > 0:
-        if verbose:
-            print("DEBUG: Response has 'entities' array, using entities[0]")
-        target_data = data['entities'][0]
-    else:
-        # Direct object response (newer API format)
-        if verbose:
-            print("DEBUG: Response is direct object")
-        target_data = data
-    
+
+    target_data = extract_single_entity(data)
+    if not target_data:
+        return EXIT_CRITICAL, f"CRITICAL: Target '{target_name}' returned no data"
+
     # Extract target information
     target_name_from_api = target_data.get('name', target_name)
     target_health = target_data.get('health', 'UNKNOWN')
@@ -451,9 +519,11 @@ def check_policy_compliance(host: str, headers: dict, timeout: int, uuid: str,
     """
     url = f'https://{host}:8443/rest/v1.0/policies/{uuid}'
     data = api_request(url, headers, timeout, verbose)
-    
-    # Get policy information
-    policy = data['entities'][0]
+
+    # Get policy information (API may wrap it in 'entities' or return it directly)
+    policy = extract_single_entity(data)
+    if not policy:
+        return EXIT_CRITICAL, f"CRITICAL: Policy '{policy_name}' returned no data"
     policy_name_from_api = policy.get('name', policy_name)
     policy_status = policy.get('compliancyStatus', 'UNKNOWN')
     compliant_vms = policy.get('compliantVmsCount', 0)
@@ -494,45 +564,42 @@ def check_policy_advanced(host: str, headers: dict, timeout: int, policy_name: s
     if verbose:
         print(f"DEBUG: Searching for policy '{policy_name}'")
     
-    # Step 1: Get policy UUID
-    url = f'https://{host}:8443/rest/v1.0/policies?pageSize=1000&pageNumber=1'
-    data = api_request(url, headers, timeout, verbose)
-    
+    # Step 1: Get policy UUID (paginated)
+    all_policies = fetch_all_entities(host, headers, timeout, 'policies', verbose=verbose)
+
     # Find policy by name (case-insensitive)
     policy_uuid = None
     policy_name_lower = policy_name.lower()
-    
-    for policy in data.get('entities', []):
-        if policy['name'].lower() == policy_name_lower:
+
+    for policy in all_policies:
+        if policy.get('name', '').lower() == policy_name_lower:
             policy_uuid = policy['uuid']
             if verbose:
                 print(f"DEBUG: Policy found: {policy['name']}")
                 print(f"DEBUG: UUID: {policy_uuid}")
             break
-    
+
     if not policy_uuid:
-        # Show available policies
-        url = f'https://{host}:8443/rest/v1.0/policies?pageSize=1000&pageNumber=1'
-        try:
-            data = api_request(url, headers, timeout, verbose)
-            available_names = [p['name'] for p in data.get('entities', [])]
-            if available_names:
-                print(f"CRITICAL: Policy '{policy_name}' does not exist")
-                print(f"Available policies: {', '.join(available_names[:5])}")
-                if len(available_names) > 5:
-                    print(f"... and {len(available_names) - 5} more")
-            else:
-                print(f"CRITICAL: Policy '{policy_name}' does not exist (no policies found)")
-        except:
+        # Show available policies (already fetched above)
+        available_names = [p.get('name', '?') for p in all_policies]
+        if available_names:
             print(f"CRITICAL: Policy '{policy_name}' does not exist")
+            print(f"Available policies: {', '.join(available_names[:5])}")
+            if len(available_names) > 5:
+                print(f"... and {len(available_names) - 5} more")
+        else:
+            print(f"CRITICAL: Policy '{policy_name}' does not exist (no policies found)")
         sys.exit(EXIT_CRITICAL)
     
     # Step 2: Get detailed policy info
     url = f'https://{host}:8443/rest/v1.0/policies/{policy_uuid}'
     data = api_request(url, headers, timeout, verbose)
-    
-    policy = data['entities'][0]
-    
+
+    policy = extract_single_entity(data)
+    if not policy:
+        print(f"CRITICAL: Policy '{policy_name}' returned no data")
+        sys.exit(EXIT_CRITICAL)
+
     if verbose:
         print(f"DEBUG: Policy compliance status: {policy.get('compliancyStatus')}")
     
@@ -735,13 +802,11 @@ def check_jobs(host: str, headers: dict, timeout: int, period_hours: int,
         print(f"  From: {start.strftime('%Y-%m-%d %H:%M:%S')} ({start_time})")
         print(f"  To:   {now.strftime('%Y-%m-%d %H:%M:%S')} ({end_time})")
     
-    # Build API URL with time filters
-    url = (f'https://{host}:8443/rest/v1.0/jobs'
-           f'?pageSize=10000&pageNumber=1'
-           f'&startTime={start_time}&endTime={end_time}')
-    
-    data = api_request(url, headers, timeout, verbose)
-    
+    # Fetch all jobs (paginated). NOTE: the HYCU API ignores startTime/endTime
+    # query parameters on the /jobs endpoint, so the time window MUST be applied
+    # client-side below using each job's 'startTime' field.
+    all_jobs = fetch_all_entities(host, headers, timeout, 'jobs', verbose=verbose)
+
     # Initialize counters
     stats = {
         'total': 0,
@@ -752,54 +817,61 @@ def check_jobs(host: str, headers: dict, timeout: int, period_hours: int,
         'other': 0,
         'failed_jobs': []
     }
-    
-    # Get total from metadata
-    if 'metadata' in data:
-        stats['total'] = data['metadata'].get('grandTotalEntityCount', 0)
-        if verbose:
-            print(f"DEBUG: Total jobs in period: {stats['total']}")
-    
+
+    # The time window is applied client-side using each job's 'startTime'
+    # (falling back to 'createdTime'). Both are epoch milliseconds, matching
+    # start_time/end_time computed above.
+    skipped_out_of_range = 0
+
     # Count jobs by status
-    if 'entities' in data:
-        for job in data['entities']:
-            status = job.get('status', 'UNKNOWN').upper()
-            job_type = job.get('type', 'UNKNOWN')
-            task_name = job.get('taskName', 'Unknown task')
-            
-            # Count by status
-            # IMPORTANT: HYCU API returns 'EXECUTING' for running jobs, not just 'RUNNING'
-            if status == 'OK':
-                stats['ok'] += 1
-            elif status == 'WARNING':
-                stats['warning'] += 1
-                stats['failed_jobs'].append({
-                    'name': task_name,
-                    'status': status,
-                    'type': job_type
-                })
-            elif status == 'ERROR':
-                stats['error'] += 1
-                stats['failed_jobs'].append({
-                    'name': task_name,
-                    'status': status,
-                    'type': job_type
-                })
-            elif status in ['RUNNING', 'QUEUED', 'PENDING', 'ACTIVE', 'IN_PROGRESS', 'EXECUTING', 'SCHEDULED']:
-                stats['running'] += 1
-                if verbose:
-                    print(f"DEBUG: Found running job - Status: {status}, Task: {task_name}")
-            else:
-                stats['other'] += 1
-                if verbose:
-                    print(f"DEBUG: Unknown status '{status}' for job: {task_name}")
-        
-        if verbose:
-            print(f"DEBUG: Jobs processed: {len(data['entities'])}")
-            print(f"DEBUG: Status breakdown:")
-            print(f"  OK: {stats['ok']}")
-            print(f"  WARNING: {stats['warning']}")
-            print(f"  ERROR: {stats['error']}")
-            print(f"  RUNNING: {stats['running']}")
+    for job in all_jobs:
+        # Filter by time period (client-side)
+        job_time = job.get('startTime') or job.get('createdTime')
+        if job_time is None or job_time < start_time or job_time > end_time:
+            skipped_out_of_range += 1
+            continue
+
+        stats['total'] += 1
+        status = job.get('status', 'UNKNOWN').upper()
+        job_type = job.get('type', 'UNKNOWN')
+        task_name = job.get('taskName', 'Unknown task')
+
+        # Count by status
+        # IMPORTANT: HYCU API returns 'EXECUTING' for running jobs, not just 'RUNNING'
+        if status == 'OK':
+            stats['ok'] += 1
+        elif status == 'WARNING':
+            stats['warning'] += 1
+            stats['failed_jobs'].append({
+                'name': task_name,
+                'status': status,
+                'type': job_type
+            })
+        elif status == 'ERROR':
+            stats['error'] += 1
+            stats['failed_jobs'].append({
+                'name': task_name,
+                'status': status,
+                'type': job_type
+            })
+        elif status in ['RUNNING', 'QUEUED', 'PENDING', 'ACTIVE', 'IN_PROGRESS', 'EXECUTING', 'SCHEDULED']:
+            stats['running'] += 1
+            if verbose:
+                print(f"DEBUG: Found running job - Status: {status}, Task: {task_name}")
+        else:
+            stats['other'] += 1
+            if verbose:
+                print(f"DEBUG: Unknown status '{status}' for job: {task_name}")
+
+    if verbose:
+        print(f"DEBUG: Jobs fetched: {len(all_jobs)}")
+        print(f"DEBUG: Jobs outside {period_hours}h window (skipped): {skipped_out_of_range}")
+        print(f"DEBUG: Jobs in period: {stats['total']}")
+        print(f"DEBUG: Status breakdown:")
+        print(f"  OK: {stats['ok']}")
+        print(f"  WARNING: {stats['warning']}")
+        print(f"  ERROR: {stats['error']}")
+        print(f"  RUNNING: {stats['running']}")
     
     # Calculate failed jobs (WARNING + ERROR)
     stats['failed'] = stats['warning'] + stats['error']
@@ -828,16 +900,17 @@ def check_jobs(host: str, headers: dict, timeout: int, period_hours: int,
               f"{stats['ok']} successful, {stats['running']} running")
     
     # Performance data for Centreon graphing (Nagios format)
-    # Format: label=value[UOM];[warn];[crit];[min];[max]
-    # NO SPACES between metrics!
+    # Format: label=value[UOM];[warn];[crit];[min];[max], metrics separated by spaces.
+    # Note: warning/critical thresholds apply to 'jobs_failed' (a count); they are
+    # intentionally NOT set on 'success_rate' (a percentage) where they'd be meaningless.
     perfdata = (
         f"|"
-        f"jobs_ok={stats['ok']};;;0;"
-        f"jobs_warning={stats['warning']};;;0;"
-        f"jobs_error={stats['error']};;;0;"
-        f"jobs_failed={stats['failed']};{warning_threshold};{critical_threshold};0;"
-        f"jobs_running={stats['running']};;;0;"
-        f"success_rate={stats['success_rate']:.2f}%;{warning_threshold};{critical_threshold};0;100"
+        f"jobs_ok={stats['ok']};;;0; "
+        f"jobs_warning={stats['warning']};;;0; "
+        f"jobs_error={stats['error']};;;0; "
+        f"jobs_failed={stats['failed']};{warning_threshold};{critical_threshold};0; "
+        f"jobs_running={stats['running']};;;0; "
+        f"success_rate={stats['success_rate']:.2f}%;;;0;100"
     )
     
     output = message + " " + perfdata
@@ -883,9 +956,21 @@ def check_license(host: str, headers: dict, timeout: int,
     company = lic.get('companyName', 'N/A')
     lic_type = lic.get('type', 'N/A')
     status = lic.get('status', 'UNKNOWN')
-    days_left = lic.get('daysLeft', 0)
     expiration_date = lic.get('expirationDate')
     version_type = lic.get('versionType', 'N/A')
+
+    # 'daysLeft' drives the alert. If the field is absent, derive it from
+    # 'expirationDate' rather than silently defaulting to 0 (which would always
+    # raise a false CRITICAL). If neither is usable, report UNKNOWN.
+    days_left = lic.get('daysLeft')
+    if days_left is None and expiration_date:
+        try:
+            exp_dt = datetime.fromtimestamp(expiration_date / 1000)
+            days_left = (exp_dt - datetime.now()).days
+        except (ValueError, TypeError, OSError, OverflowError):
+            days_left = None
+    if days_left is None:
+        return EXIT_UNKNOWN, "UNKNOWN: License expiration info (daysLeft) not available from API"
     
     # License capacities
     licensed_vms = lic.get('licensedVms', 0)
@@ -903,7 +988,7 @@ def check_license(host: str, headers: dict, timeout: int,
     if expiration_date:
         try:
             exp_date_str = datetime.fromtimestamp(expiration_date / 1000).strftime('%Y-%m-%d')
-        except:
+        except (ValueError, TypeError, OSError, OverflowError):
             exp_date_str = 'N/A'
     else:
         exp_date_str = 'N/A'
@@ -1012,13 +1097,9 @@ def check_backup_validation(host: str, headers: dict, timeout: int, period_hours
     if verbose:
         print(f"DEBUG: Checking backup validations from {start} to {now}")
     
-    # Get backup validation jobs
-    url = (f'https://{host}:8443/rest/v1.0/jobs'
-           f'?pageSize=10000&pageNumber=1'
-           f'&startTime={start_time}&endTime={end_time}')
-    
-    data = api_request(url, headers, timeout, verbose)
-    
+    # Get backup validation jobs (paginated, full history)
+    all_jobs = fetch_all_entities(host, headers, timeout, 'jobs', verbose=verbose)
+
     # Count validation jobs
     stats = {
         'total': 0,
@@ -1027,21 +1108,26 @@ def check_backup_validation(host: str, headers: dict, timeout: int, period_hours
         'error': 0,
         'failed': 0
     }
-    
-    if 'entities' in data:
-        for job in data['entities']:
-            job_type = job.get('type', '')
-            # Filter only validation-related jobs
-            if 'VALIDATION' in job_type or 'RESTORE_VALIDATE' in job_type:
-                stats['total'] += 1
-                status = job.get('status', 'UNKNOWN').upper()
-                
-                if status == 'OK':
-                    stats['ok'] += 1
-                elif status == 'WARNING':
-                    stats['warning'] += 1
-                elif status == 'ERROR':
-                    stats['error'] += 1
+
+    for job in all_jobs:
+        # The HYCU API ignores startTime/endTime query params, so filter
+        # the time window client-side (epoch ms, same as start/end_time).
+        job_time = job.get('startTime') or job.get('createdTime')
+        if job_time is None or job_time < start_time or job_time > end_time:
+            continue
+
+        job_type = job.get('type', '')
+        # Filter only validation-related jobs
+        if 'VALIDATION' in job_type or 'RESTORE_VALIDATE' in job_type:
+            stats['total'] += 1
+            status = job.get('status', 'UNKNOWN').upper()
+
+            if status == 'OK':
+                stats['ok'] += 1
+            elif status == 'WARNING':
+                stats['warning'] += 1
+            elif status == 'ERROR':
+                stats['error'] += 1
     
     stats['failed'] = stats['warning'] + stats['error']
     
@@ -1094,9 +1180,8 @@ def check_shares(host: str, headers: dict, timeout: int,
     Returns:
         Tuple of (exit_code, output_message)
     """
-    url = f'https://{host}:8443/rest/v1.0/shares?pageSize=1000&pageNumber=1'
-    data = api_request(url, headers, timeout, verbose)
-    
+    all_shares = fetch_all_entities(host, headers, timeout, 'shares', verbose=verbose)
+
     stats = {
         'total': 0,
         'protected': 0,
@@ -1104,9 +1189,9 @@ def check_shares(host: str, headers: dict, timeout: int,
         'non_compliant': 0,
         'unprotected': 0
     }
-    
-    if 'entities' in data:
-        for share in data['entities']:
+
+    if all_shares:
+        for share in all_shares:
             # Filter only NFS/SMB shares (exclude S3 buckets)
             protocols = share.get('protocolTypeList', [])
             if not any(p in ['NFS', 'SMB'] for p in protocols):
@@ -1182,9 +1267,8 @@ def check_buckets(host: str, headers: dict, timeout: int,
         Tuple of (exit_code, output_message)
     """
     # Note: HYCU uses /shares endpoint for both shares and buckets
-    url = f'https://{host}:8443/rest/v1.0/shares?pageSize=1000&pageNumber=1'
-    data = api_request(url, headers, timeout, verbose)
-    
+    all_buckets = fetch_all_entities(host, headers, timeout, 'shares', verbose=verbose)
+
     stats = {
         'total': 0,
         'protected': 0,
@@ -1192,9 +1276,9 @@ def check_buckets(host: str, headers: dict, timeout: int,
         'non_compliant': 0,
         'unprotected': 0
     }
-    
-    if 'entities' in data:
-        for bucket in data['entities']:
+
+    if all_buckets:
+        for bucket in all_buckets:
             # Filter only S3 buckets (exclude NFS/SMB shares)
             protocols = bucket.get('protocolTypeList', [])
             if 'S3' not in protocols:
@@ -1364,103 +1448,86 @@ def check_unassigned(host: str, headers: dict, timeout: int,
     if verbose:
         print("DEBUG: Checking unassigned VMs...")
     
-    url = f'https://{host}:8443/rest/v1.0/vms?pageSize=1000&pageNumber=1'
     try:
-        data = api_request(url, headers, timeout, verbose=False)
-        if 'entities' in data:
-            for vm in data['entities']:
-                protection_group = vm.get('protectionGroupName')
-                # Unassigned = no protectionGroupName (null/None/empty)
-                if not protection_group:
-                    vm_name = vm.get('vmName', 'Unknown')
-                    unassigned_objects['vms'].append(vm_name)
-                    stats['vms'] += 1
+        vm_entities = fetch_all_entities(host, headers, timeout, 'vms', verbose=False)
+        for vm in vm_entities:
+            protection_group = vm.get('protectionGroupName')
+            # Unassigned = no protectionGroupName (null/None/empty)
+            if not protection_group:
+                vm_name = vm.get('vmName', 'Unknown')
+                unassigned_objects['vms'].append(vm_name)
+                stats['vms'] += 1
     except Exception as e:
         if verbose:
             print(f"DEBUG: Error checking VMs: {e}")
-    
-    # Check Shares (NFS/SMB only)
+
+    # Check Shares (NFS/SMB) and Buckets (S3) - both come from /shares endpoint.
+    # Fetch once into a dedicated variable so the bucket pass never depends on
+    # whatever a previous request happened to leave in scope.
     if verbose:
-        print("DEBUG: Checking unassigned shares...")
-    
-    url = f'https://{host}:8443/rest/v1.0/shares?pageSize=1000&pageNumber=1'
+        print("DEBUG: Checking unassigned shares and buckets...")
+
+    share_entities = []
     try:
-        data = api_request(url, headers, timeout, verbose=False)
-        if 'entities' in data:
-            for share in data['entities']:
-                # Filter NFS/SMB shares only
-                protocols = share.get('protocolTypeList', [])
-                if not any(p in ['NFS', 'SMB'] for p in protocols):
-                    continue
-                
-                protection_group = share.get('protectionGroupName')
-                # Unassigned = no protectionGroupName
-                if not protection_group:
-                    share_name = share.get('shareName', 'Unknown')
-                    unassigned_objects['shares'].append(share_name)
-                    stats['shares'] += 1
+        share_entities = fetch_all_entities(host, headers, timeout, 'shares', verbose=False)
     except Exception as e:
         if verbose:
-            print(f"DEBUG: Error checking shares: {e}")
-    
-    # Check Buckets (S3) - using same data from shares endpoint
-    if verbose:
-        print("DEBUG: Checking unassigned buckets...")
-    
-    try:
-        if 'entities' in data:
-            for bucket in data['entities']:
-                # Filter S3 buckets only
-                protocols = bucket.get('protocolTypeList', [])
-                if 'S3' not in protocols:
-                    continue
-                
-                protection_group = bucket.get('protectionGroupName')
-                # Unassigned = no protectionGroupName
-                if not protection_group:
-                    bucket_name = bucket.get('shareName', 'Unknown')
-                    unassigned_objects['buckets'].append(bucket_name)
-                    stats['buckets'] += 1
-    except Exception as e:
-        if verbose:
-            print(f"DEBUG: Error checking buckets: {e}")
-    
+            print(f"DEBUG: Error fetching shares/buckets: {e}")
+
+    # Shares (NFS/SMB only)
+    for share in share_entities:
+        protocols = share.get('protocolTypeList', [])
+        if not any(p in ['NFS', 'SMB'] for p in protocols):
+            continue
+        protection_group = share.get('protectionGroupName')
+        if not protection_group:
+            share_name = share.get('shareName', 'Unknown')
+            unassigned_objects['shares'].append(share_name)
+            stats['shares'] += 1
+
+    # Buckets (S3 only) - reuse the same fetched entities
+    for bucket in share_entities:
+        protocols = bucket.get('protocolTypeList', [])
+        if 'S3' not in protocols:
+            continue
+        protection_group = bucket.get('protectionGroupName')
+        if not protection_group:
+            bucket_name = bucket.get('shareName', 'Unknown')
+            unassigned_objects['buckets'].append(bucket_name)
+            stats['buckets'] += 1
+
     # Check Applications
     if verbose:
         print("DEBUG: Checking unassigned applications...")
-    
-    url = f'https://{host}:8443/rest/v1.0/applications?pageSize=1000&pageNumber=1'
+
     try:
-        data = api_request(url, headers, timeout, verbose=False)
-        if 'entities' in data:
-            for app in data['entities']:
-                protection_group = app.get('protectionGroupName')
-                # Unassigned = no protectionGroupName
-                if not protection_group:
-                    # Use 'name' field for applications
-                    app_name = app.get('name', 'Unknown')
-                    unassigned_objects['apps'].append(app_name)
-                    stats['apps'] += 1
+        app_entities = fetch_all_entities(host, headers, timeout, 'applications', verbose=False)
+        for app in app_entities:
+            protection_group = app.get('protectionGroupName')
+            # Unassigned = no protectionGroupName
+            if not protection_group:
+                # Use 'name' field for applications
+                app_name = app.get('name', 'Unknown')
+                unassigned_objects['apps'].append(app_name)
+                stats['apps'] += 1
     except Exception as e:
         if verbose:
             print(f"DEBUG: Error checking applications: {e}")
-    
+
     # Check Volume Groups
     if verbose:
         print("DEBUG: Checking unassigned volume groups...")
-    
-    url = f'https://{host}:8443/rest/v1.0/volumegroups?pageSize=1000&pageNumber=1'
+
     try:
-        data = api_request(url, headers, timeout, verbose=False)
-        if 'entities' in data:
-            for vg in data['entities']:
-                protection_group = vg.get('protectionGroupName')
-                # Unassigned = no protectionGroupName
-                if not protection_group:
-                    # Use 'name' field for volume groups
-                    vg_name = vg.get('name', 'Unknown')
-                    unassigned_objects['vgs'].append(vg_name)
-                    stats['vgs'] += 1
+        vg_entities = fetch_all_entities(host, headers, timeout, 'volumegroups', verbose=False)
+        for vg in vg_entities:
+            protection_group = vg.get('protectionGroupName')
+            # Unassigned = no protectionGroupName
+            if not protection_group:
+                # Use 'name' field for volume groups
+                vg_name = vg.get('name', 'Unknown')
+                unassigned_objects['vgs'].append(vg_name)
+                stats['vgs'] += 1
     except Exception as e:
         if verbose:
             print(f"DEBUG: Error checking volume groups: {e}")
@@ -1547,6 +1614,7 @@ def check_unassigned(host: str, headers: dict, timeout: int,
 
 def main():
     """Main execution function"""
+    options = None
     try:
         # Parse arguments
         options = parse_arguments()
@@ -1588,10 +1656,11 @@ def main():
             )
             if uuid is None:
                 # Provide helpful error message with available targets
-                url = f'https://{options.host}:8443/rest/v1.0/targets?pageSize=1000&pageNumber=1'
                 try:
-                    data = api_request(url, headers, options.timeout, options.verbose)
-                    available_names = [entity['name'] for entity in data.get('entities', [])]
+                    target_entities = fetch_all_entities(
+                        options.host, headers, options.timeout, 'targets', verbose=options.verbose
+                    )
+                    available_names = [e.get('name', '?') for e in target_entities]
                     if available_names:
                         print(f"CRITICAL: Target '{options.vmtarget}' does not exist")
                         print(f"Available targets: {', '.join(available_names[:5])}")
@@ -1599,7 +1668,7 @@ def main():
                             print(f"... and {len(available_names) - 5} more")
                     else:
                         print(f"CRITICAL: Target '{options.vmtarget}' does not exist (no targets found)")
-                except:
+                except Exception:
                     print(f"CRITICAL: Target '{options.vmtarget}' does not exist")
                 sys.exit(EXIT_CRITICAL)
             
@@ -1764,7 +1833,7 @@ def main():
     
     except Exception as e:
         print(f"UNKNOWN: Unexpected error - {str(e)}")
-        if options.verbose:
+        if options is not None and options.verbose:
             import traceback
             traceback.print_exc()
         sys.exit(EXIT_UNKNOWN)

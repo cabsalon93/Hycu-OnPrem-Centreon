@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![HYCU Compatible](https://img.shields.io/badge/HYCU-4.9%2B%20%7C%205.x-purple)](https://www.hycu.com/)
-[![Version](https://img.shields.io/badge/version-2.1-orange)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.2-orange)](CHANGELOG.md)
 
 Professional monitoring plugin for HYCU backup infrastructure. Monitor VMs, policies, jobs, licenses, storage, and more through HYCU REST API.
 
@@ -21,7 +21,7 @@ Professional monitoring plugin for HYCU backup infrastructure. Monitor VMs, poli
 
 ## ✨ Features
 
-### 16 Check Types Available
+### 15 Check Types Available
 
 | Category | Types | Description |
 |----------|-------|-------------|
@@ -34,13 +34,13 @@ Professional monitoring plugin for HYCU backup infrastructure. Monitor VMs, poli
 
 ### Key Features
 
-✅ **16 monitoring check types** - Complete HYCU infrastructure coverage  
+✅ **15 monitoring check types** - Complete HYCU infrastructure coverage  
 ✅ **Centreon/Nagios compatible** - Standard exit codes and performance data  
 ✅ **Configurable thresholds** - Warning and critical levels with `-w` and `-c`  
 ✅ **Time-based monitoring** - Jobs and validation checks over custom periods  
 ✅ **Detailed performance metrics** - 60+ metrics for Centreon graphing  
 ✅ **Verbose debugging mode** - `-v` flag for troubleshooting  
-✅ **No dependencies** - Pure Python with standard libraries  
+✅ **Single dependency** - Only the `requests` library (standard library otherwise)  
 ✅ **SSL verification disabled** - Works with self-signed certificates  
 
 ## 🚀 Quick Start
@@ -48,6 +48,7 @@ Professional monitoring plugin for HYCU backup infrastructure. Monitor VMs, poli
 ### Prerequisites
 
 - Python 3.7 or higher
+- The `requests` library (`pip install requests`)
 - HYCU 4.9+ or 5.x
 - HYCU API token
 - Network access to HYCU controller (port 8443)
@@ -59,11 +60,14 @@ Professional monitoring plugin for HYCU backup infrastructure. Monitor VMs, poli
 git clone https://github.com/YOUR_USERNAME/hycu-monitoring-plugin.git
 cd hycu-monitoring-plugin
 
+# Install the only dependency
+pip install requests
+
 # Make the script executable
-chmod +x check_hycu_vm_backup_v2.1.py
+chmod +x check_hycu_vm_backup_v2.2.py
 
 # Test the connection
-python3 check_hycu_vm_backup_v2.1.py -l your-hycu-host.com -a YOUR_TOKEN -t version
+python3 check_hycu_vm_backup_v2.2.py -l your-hycu-host.com -a YOUR_TOKEN -t version
 ```
 
 ### Generate API Token
@@ -78,7 +82,7 @@ python3 check_hycu_vm_backup_v2.1.py -l your-hycu-host.com -a YOUR_TOKEN -t vers
 ### Basic Syntax
 
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l <host> -a <token> -t <type> [options]
+python3 check_hycu_vm_backup_v2.2.py -l <host> -a <token> -t <type> [options]
 ```
 
 ### Common Options
@@ -101,25 +105,25 @@ python3 check_hycu_vm_backup_v2.1.py -l <host> -a <token> -t <type> [options]
 
 #### 1. VM Backup Status (`vm`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "VM-NAME" -t vm
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "VM-NAME" -t vm
 ```
 **Output:** `OK: VM-NAME is OK for last FULL |backup_status=2;;;`
 
 #### 2. VM Backup by UUID (`vmid`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "VM-UUID" -t vmid
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "VM-UUID" -t vmid
 ```
 **Use case:** When VM name is not unique
 
 #### 3. Target Health (`target`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "TARGET-NAME" -t target
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "TARGET-NAME" -t target
 ```
 **Output:** `OK: 01_NFS_Shared is GREEN |target_health=2;;;`
 
 #### 4. Archive Status (`archive`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "VM-NAME" -t archive
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "VM-NAME" -t archive
 ```
 **Output:** `OK: VM-NAME archive is OK for last FULL |archive_status=2;;; archives_ok=2;;; archives_failed=0;;;`
 
@@ -127,13 +131,13 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "VM-NAME" -t archive
 
 #### 5. Policy Compliance Simple (`policy`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "POLICY-NAME" -t policy
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "POLICY-NAME" -t policy
 ```
 **Output:** `OK: Bronze is GREEN including 36 VMs |policy_status=2;;; compliant_vms=36;;;`
 
 #### 6. Policy Compliance Advanced (`policy-advanced`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "POLICY-NAME" -t policy-advanced -w 5 -c 10
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "POLICY-NAME" -t policy-advanced -w 5 -c 10
 ```
 **Output:** `OK: Policy 'Bronze' - 50/51 objects compliant (36/37 VMs, 6/7 shares, 7/7 apps, 1/1 buckets, 0/0 VGs) |...`
 **Features:** Detailed breakdown by object type, configurable thresholds
@@ -143,16 +147,16 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "POLICY-NAME" -t policy
 #### 7. Manager Dashboard (`manager`)
 ```bash
 # Check protected VMs
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "protected" -t manager
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "protected" -t manager
 
 # Check compliance
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "compliance" -t manager
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "compliance" -t manager
 ```
 **Output:** `OK: 0 VMs not protected out of 150 total |vms_unprotected=0;;; vms_protected=150;;; vms_total=150;;;`
 
 #### 8. Jobs Statistics (`jobs`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t jobs -w 10 -c 20 -p 24
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t jobs -w 10 -c 20 -p 24
 ```
 **Output:** `OK: HYCU jobs over 24h - 5 failed (4 errors, 1 warnings), 95 successful, 2 running |...`
 **Parameters:**
@@ -162,14 +166,14 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t jobs -w 10 -c 20 -p 24
 
 #### 9. License Status (`license`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t license -w 30 -c 7
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t license -w 30 -c 7
 ```
 **Output:** `WARNING: License 'Company' - 15 days left (expires 2026-01-31), Status: ACTIVE, VMs: 50/100, Sockets: 4/8 |...`
 **Note:** Thresholds are inverted (critical < warning) for days before expiration
 
 #### 10. Version Information (`version`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t version
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t version
 ```
 **Output:** `OK: HYCU Controller 'hycu-demo05' - Version 5.2.0 (Build 12345), Hypervisor: KVM`
 **Use case:** Inventory, documentation, always returns OK
@@ -178,14 +182,14 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t version
 
 #### 11. Shares Monitoring (`shares`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t shares -w 3 -c 5
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t shares -w 3 -c 5
 ```
 **Output:** `OK: Shares (NFS/SMB) - 6/7 compliant, 1 non-compliant, 0 unprotected |...`
 **Monitors:** NFS and SMB file shares
 
 #### 12. Buckets Monitoring (`buckets`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t buckets -w 2 -c 5
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t buckets -w 2 -c 5
 ```
 **Output:** `OK: Buckets (S3) - 1/1 compliant, 0 non-compliant, 0 unprotected |...`
 **Monitors:** S3 object storage buckets
@@ -194,14 +198,14 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t buckets -w 2 -c 5
 
 #### 13. Backup Validation (`backup-validation`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t backup-validation -w 5 -c 10 -p 24
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t backup-validation -w 5 -c 10 -p 24
 ```
 **Output:** `CRITICAL: Backup validations over 24h - 12 failed (10 errors, 2 warnings), 45 successful |...`
 **Use case:** Verify backup integrity and restorability
 
 #### 14. Unassigned Objects (`unassigned`)
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t unassigned -w 5 -c 10
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t unassigned -w 5 -c 10
 ```
 **Output:** `WARNING: 7 unassigned objects - 3 VMs, 2 shares, 0 buckets, 1 apps, 1 VGs | VMs: VM-TEST-01, VM-TEST-02, VM-DEMO-03 / ...`
 **Use case:** Audit objects without policy assignment
@@ -211,10 +215,10 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t unassigned -w 5 -c 10
 #### 15. Port Connectivity (`port`)
 ```bash
 # Default port (8443)
-python3 check_hycu_vm_backup_v2.1.py -l HOST -t port
+python3 check_hycu_vm_backup_v2.2.py -l HOST -t port
 
 # Custom port
-python3 check_hycu_vm_backup_v2.1.py -l HOST -t port -n 22
+python3 check_hycu_vm_backup_v2.2.py -l HOST -t port -n 22
 ```
 **Output:** `OK: Port 8443 is OPEN on demo05.hycu.com (response time: 15ms) |response_time=15ms;;;0;`
 **Note:** No API token required
@@ -225,35 +229,39 @@ python3 check_hycu_vm_backup_v2.1.py -l HOST -t port -n 22
 
 ```bash
 # Monitor critical production VM
-python3 check_hycu_vm_backup_v2.1.py -l hycu.prod.company.com -a "TOKEN" -n "PROD-DB-01" -t vm
+python3 check_hycu_vm_backup_v2.2.py -l hycu.prod.company.com -a "TOKEN" -n "PROD-DB-01" -t vm
 
 # Check production policy with low tolerance
-python3 check_hycu_vm_backup_v2.1.py -l hycu.prod.company.com -a "TOKEN" -n "Production" -t policy-advanced -w 1 -c 3
+python3 check_hycu_vm_backup_v2.2.py -l hycu.prod.company.com -a "TOKEN" -n "Production" -t policy-advanced -w 1 -c 3
 
 # Monitor jobs with high volume tolerance
-python3 check_hycu_vm_backup_v2.1.py -l hycu.prod.company.com -a "TOKEN" -t jobs -w 20 -c 50 -p 24
+python3 check_hycu_vm_backup_v2.2.py -l hycu.prod.company.com -a "TOKEN" -t jobs -w 20 -c 50 -p 24
 
 # Alert 30 days before license expiration
-python3 check_hycu_vm_backup_v2.1.py -l hycu.prod.company.com -a "TOKEN" -t license -w 30 -c 7
+python3 check_hycu_vm_backup_v2.2.py -l hycu.prod.company.com -a "TOKEN" -t license -w 30 -c 7
 
 # Daily audit of unassigned objects
-python3 check_hycu_vm_backup_v2.1.py -l hycu.prod.company.com -a "TOKEN" -t unassigned -w 5 -c 10
+python3 check_hycu_vm_backup_v2.2.py -l hycu.prod.company.com -a "TOKEN" -t unassigned -w 5 -c 10
 ```
 
 ### Debugging
 
 ```bash
 # Verbose mode for troubleshooting
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -n "VM-NAME" -t vm -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -n "VM-NAME" -t vm -v
 
 # Test API connectivity
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t version -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t version -v
 
 # Test port without credentials
-python3 check_hycu_vm_backup_v2.1.py -l HOST -t port -n 8443 -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -t port -n 8443 -v
 ```
 
 ## 🎨 Centreon Integration
+
+> **Fast path:** instead of creating everything by hand, import the ready-made
+> commands and service templates from [`centreon/hycu-pluginpack.clapi`](centreon/hycu-pluginpack.clapi).
+> See [`centreon/README.md`](centreon/README.md).
 
 ### Service Templates
 
@@ -263,7 +271,7 @@ Create service templates in Centreon for each check type. Example for license mo
 
 **Check Command:**
 ```
-$USER1$/check_hycu_vm_backup_v2.1.py -l $HOSTADDRESS$ -a $USER2$ -t license -w $ARG1$ -c $ARG2$
+$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $USER2$ -t license -w $ARG1$ -c $ARG2$
 ```
 
 **Macros:**
@@ -328,7 +336,7 @@ Use these metrics to create graphs in Centreon/Nagios for trend analysis.
 Always use `-v` flag when troubleshooting:
 
 ```bash
-python3 check_hycu_vm_backup_v2.1.py -l HOST -a TOKEN -t TYPE -v
+python3 check_hycu_vm_backup_v2.2.py -l HOST -a TOKEN -t TYPE -v
 ```
 
 This shows:
@@ -336,19 +344,6 @@ This shows:
 - HTTP status codes
 - Response summaries
 - Processing steps
-
-## 📈 Roadmap
-
-### Planned Features (v2.2)
-
-- [ ] Capacity monitoring for targets
-- [ ] Performance metrics (throughput, duration)
-- [ ] Restore jobs monitoring
-- [ ] Copy jobs monitoring
-- [ ] Batch mode for multiple checks
-- [ ] JSON/XML export format
-- [ ] API response caching
-- [ ] Multi-threading support
 
 ## 🤝 Contributing
 
@@ -386,7 +381,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Credits
 
 - **Original Author:** christophe.Absalon@hycu.com
-- **v2.0-2.1 Enhancements:** Major improvements and new features
+- **v2.0-2.2 Enhancements:** Major improvements, new features, and reliability fixes
 
 ## 📞 Support
 

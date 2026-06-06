@@ -1,0 +1,92 @@
+CMD;ADD;check_hycu_version;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t version -T $ARG1$
+CMD;SETARGUMENTDESCR;check_hycu_version;Timeout in seconds
+CMD;ADD;check_hycu_license;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t license -w $ARG1$ -c $ARG2$ -T $ARG3$
+CMD;SETARGUMENTDESCR;check_hycu_license;Warning days before expiration|Critical days before expiration|Timeout in seconds
+CMD;ADD;check_hycu_jobs;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t jobs -w $ARG1$ -c $ARG2$ -p $ARG3$ -T $ARG4$
+CMD;SETARGUMENTDESCR;check_hycu_jobs;Warning failed jobs|Critical failed jobs|Period in hours (1-168)|Timeout in seconds
+CMD;ADD;check_hycu_backup_validation;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t backup-validation -w $ARG1$ -c $ARG2$ -p $ARG3$ -T $ARG4$
+CMD;SETARGUMENTDESCR;check_hycu_backup_validation;Warning failed validations|Critical failed validations|Period in hours (1-168)|Timeout in seconds
+CMD;ADD;check_hycu_unassigned;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t unassigned -w $ARG1$ -c $ARG2$ -T $ARG3$
+CMD;SETARGUMENTDESCR;check_hycu_unassigned;Warning unassigned objects|Critical unassigned objects|Timeout in seconds
+CMD;ADD;check_hycu_shares;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t shares -w $ARG1$ -c $ARG2$ -T $ARG3$
+CMD;SETARGUMENTDESCR;check_hycu_shares;Warning non-compliant shares|Critical non-compliant shares|Timeout in seconds
+CMD;ADD;check_hycu_buckets;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -t buckets -w $ARG1$ -c $ARG2$ -T $ARG3$
+CMD;SETARGUMENTDESCR;check_hycu_buckets;Warning non-compliant buckets|Critical non-compliant buckets|Timeout in seconds
+CMD;ADD;check_hycu_port;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -t port -n $ARG1$ -T $ARG2$
+CMD;SETARGUMENTDESCR;check_hycu_port;TCP port number|Timeout in seconds (max 30)
+CMD;ADD;check_hycu_vm;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -n "$ARG1$" -t vm -T $ARG2$
+CMD;SETARGUMENTDESCR;check_hycu_vm;VM name|Timeout in seconds
+CMD;ADD;check_hycu_target;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -n "$ARG1$" -t target -T $ARG2$
+CMD;SETARGUMENTDESCR;check_hycu_target;Target name|Timeout in seconds
+CMD;ADD;check_hycu_policy_advanced;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -n "$ARG1$" -t policy-advanced -w $ARG2$ -c $ARG3$ -T $ARG4$
+CMD;SETARGUMENTDESCR;check_hycu_policy_advanced;Policy name|Warning non-compliant|Critical non-compliant|Timeout in seconds
+CMD;ADD;check_hycu_manager;check;$USER1$/check_hycu_vm_backup_v2.2.py -l $HOSTADDRESS$ -a $_HOSTHYCUTOKEN$ -n "$ARG1$" -t manager -T $ARG2$
+CMD;SETARGUMENTDESCR;check_hycu_manager;protected or compliance|Timeout in seconds
+
+HTPL;ADD;HYCU-Controller;HYCU Backup Controller;;;;;
+HTPL;SETPARAM;HYCU-Controller;check_command;check_hycu_port
+HTPL;SETPARAM;HYCU-Controller;check_command_arguments;!8443!30
+HTPL;SETPARAM;HYCU-Controller;check_interval;5
+HTPL;SETPARAM;HYCU-Controller;max_check_attempts;3
+HTPL;SETPARAM;HYCU-Controller;retry_check_interval;1
+HTPL;SETMACRO;HYCU-Controller;HYCUTOKEN;CHANGE_ME_HYCU_API_TOKEN;1;HYCU REST API token
+
+STPL;ADD;HYCU-Version;HYCU controller version (informational);generic-service
+STPL;SETPARAM;HYCU-Version;check_command;check_hycu_version
+STPL;SETPARAM;HYCU-Version;check_command_arguments;!100
+STPL;SETPARAM;HYCU-Version;check_interval;1440
+STPL;SETPARAM;HYCU-Version;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-Version;HYCU-Controller
+STPL;ADD;HYCU-License;HYCU license expiration;generic-service
+STPL;SETPARAM;HYCU-License;check_command;check_hycu_license
+STPL;SETPARAM;HYCU-License;check_command_arguments;!30!7!100
+STPL;SETPARAM;HYCU-License;check_interval;1440
+STPL;SETPARAM;HYCU-License;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-License;HYCU-Controller
+STPL;ADD;HYCU-Jobs;HYCU backup jobs over period;generic-service
+STPL;SETPARAM;HYCU-Jobs;check_command;check_hycu_jobs
+STPL;SETPARAM;HYCU-Jobs;check_command_arguments;!10!20!24!100
+STPL;SETPARAM;HYCU-Jobs;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-Jobs;HYCU-Controller
+STPL;ADD;HYCU-Backup-Validation;HYCU backup validation jobs;generic-service
+STPL;SETPARAM;HYCU-Backup-Validation;check_command;check_hycu_backup_validation
+STPL;SETPARAM;HYCU-Backup-Validation;check_command_arguments;!5!10!24!100
+STPL;SETPARAM;HYCU-Backup-Validation;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-Backup-Validation;HYCU-Controller
+STPL;ADD;HYCU-Unassigned;HYCU objects without policy;generic-service
+STPL;SETPARAM;HYCU-Unassigned;check_command;check_hycu_unassigned
+STPL;SETPARAM;HYCU-Unassigned;check_command_arguments;!5!10!100
+STPL;SETPARAM;HYCU-Unassigned;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-Unassigned;HYCU-Controller
+STPL;ADD;HYCU-Shares;HYCU NFS/SMB shares compliance;generic-service
+STPL;SETPARAM;HYCU-Shares;check_command;check_hycu_shares
+STPL;SETPARAM;HYCU-Shares;check_command_arguments;!3!5!100
+STPL;SETPARAM;HYCU-Shares;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-Shares;HYCU-Controller
+STPL;ADD;HYCU-Buckets;HYCU S3 buckets compliance;generic-service
+STPL;SETPARAM;HYCU-Buckets;check_command;check_hycu_buckets
+STPL;SETPARAM;HYCU-Buckets;check_command_arguments;!2!5!100
+STPL;SETPARAM;HYCU-Buckets;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-Buckets;HYCU-Controller
+STPL;ADD;HYCU-Port-8443;HYCU API TCP port connectivity;generic-service
+STPL;SETPARAM;HYCU-Port-8443;check_command;check_hycu_port
+STPL;SETPARAM;HYCU-Port-8443;check_command_arguments;!8443!30
+STPL;SETPARAM;HYCU-Port-8443;register;1
+STPL;ADDHOSTTEMPLATE;HYCU-Port-8443;HYCU-Controller
+STPL;ADD;HYCU-Manager-Protected;HYCU global protected VMs;generic-service
+STPL;SETPARAM;HYCU-Manager-Protected;check_command;check_hycu_manager
+STPL;SETPARAM;HYCU-Manager-Protected;check_command_arguments;!protected!100
+STPL;SETPARAM;HYCU-Manager-Protected;register;1
+STPL;ADD;HYCU-Manager-Compliance;HYCU global compliance;generic-service
+STPL;SETPARAM;HYCU-Manager-Compliance;check_command;check_hycu_manager
+STPL;SETPARAM;HYCU-Manager-Compliance;check_command_arguments;!compliance!100
+STPL;SETPARAM;HYCU-Manager-Compliance;register;1
+STPL;ADD;HYCU-VM-Backup;HYCU single VM backup status;generic-service
+STPL;SETPARAM;HYCU-VM-Backup;check_command;check_hycu_vm
+STPL;SETPARAM;HYCU-VM-Backup;register;1
+STPL;ADD;HYCU-Target-Health;HYCU backup target health;generic-service
+STPL;SETPARAM;HYCU-Target-Health;check_command;check_hycu_target
+STPL;SETPARAM;HYCU-Target-Health;register;1
+STPL;ADD;HYCU-Policy-Advanced;HYCU policy compliance (detailed);generic-service
+STPL;SETPARAM;HYCU-Policy-Advanced;check_command;check_hycu_policy_advanced
+STPL;SETPARAM;HYCU-Policy-Advanced;register;1

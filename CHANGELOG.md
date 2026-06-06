@@ -5,6 +5,54 @@ All notable changes to the HYCU Monitoring Plugin will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-06-06
+
+> Maintenance release: bug fixes and reliability improvements. No new check
+> types. The script file is renamed to `check_hycu_vm_backup_v2.2.py`.
+
+### Added
+- **Centreon CLAPI import** (`centreon/hycu-pluginpack.clapi`) creating the 12
+  check commands, a `HYCU-Controller` host template, and ready-to-use service
+  templates — see `centreon/README.md`.
+
+### Fixed
+- **`-p` period now respected** for `jobs` and `backup-validation`: the HYCU API
+  ignores the `startTime`/`endTime` query parameters, so the time window is now
+  applied client-side using each job's `startTime` (fallback `createdTime`).
+  Previously every period returned the full job history.
+- **Full pagination of all list endpoints** via a new `fetch_all_entities()`
+  helper. Earlier versions requested a single large page (`pageSize=1000/10000`)
+  and silently truncated results on large infrastructures, which could cause an
+  existing object to be reported as *"does not exist"* (false CRITICAL).
+- **`unassigned` check** no longer reuses a stale `shares` response when counting
+  buckets; shares/buckets are fetched once into a dedicated variable.
+- **`license` check** reports `UNKNOWN` instead of a false `CRITICAL` when the
+  `daysLeft` field is absent, and derives it from `expirationDate` when possible.
+- **`port` check** no longer requires an API token (it is a pure TCP probe).
+  Argument parsing was restructured so `-t port` only needs `-l`.
+
+### Changed
+- Unified single-object response handling via `extract_single_entity()` (works
+  whether the API returns a direct object or an `entities[]` wrapper) for
+  `target`, `policy`, and `policy-advanced`.
+- `success_rate` performance data no longer carries the failed-count warning/
+  critical thresholds (they are meaningless on a percentage metric).
+- Standardized performance-data formatting to space-separated metrics across all
+  checks (Nagios standard).
+
+### Technical Improvements
+- Added `fetch_all_entities()` and `extract_single_entity()` helpers.
+- Replaced bare `except:` clauses with typed/`Exception` handlers.
+- Guarded `options` access in the top-level exception handler (no `NameError`
+  when parsing fails early).
+- Removed dead code: unused `FIELD_*` constants and the unused `Dict` import.
+- Migrated CLI parsing from the deprecated `optparse` to `argparse`; all options
+  now also have long forms (`--host`, `--token`, `--name`, `--type`, `--timeout`,
+  `--verbose`). Existing short options and exit codes are unchanged.
+- Reuse a single `requests.Session` (HTTP keep-alive) for all API calls,
+  reducing TLS handshakes on multi-call and paginated checks.
+- Added `requirements.txt` (`requests`).
+
 ## [2.1.0] - 2026-01-16
 
 ### Added
@@ -18,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `unassigned` - Audit objects without policy assignment
 
 ### Changed
-- Updated total check types from 8 to **16**
+- Updated total check types from 8 to **15**
 - Improved validation of thresholds with centralized function
 - Enhanced error messages with categorized check types display
 - Optimized help text with grouped check types by category
@@ -81,11 +129,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 |---------|-------------|--------------|
 | 1.x | 5 | Basic monitoring (vm, target, archive, policy) |
 | 2.0 | 8 | Added policy-advanced, jobs, manager with thresholds |
-| 2.1 | **16** | Added license, version, validation, storage, network, audit |
+| 2.1 | **15** | Added license, version, validation, storage, network, audit |
+| 2.2 | 15 | Reliability fixes: period filtering, pagination, robustness |
 
 ---
 
 ## Upgrade Notes
+
+### From 2.1 to 2.2
+
+**Breaking Changes:** None - 100% backward compatible (output format unchanged)
+
+**Note:** The script file is renamed `check_hycu_vm_backup_v2.1.py` →
+`check_hycu_vm_backup_v2.2.py`. Update your Centreon/Nagios command definitions
+(or keep the old filename if you prefer — the CLI and outputs are identical).
+
+**Migration Steps:**
+1. Deploy `check_hycu_vm_backup_v2.2.py`
+2. Update the plugin path in your check commands
+3. `jobs`/`backup-validation` now honor `-p`; verify your thresholds still fit
+   the (now correctly scoped) period
 
 ### From 2.0 to 2.1
 
@@ -122,7 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Planned Features (Future Versions)
 
-### v2.2 (Planned)
+### v2.3 (Planned)
 - [ ] Capacity monitoring for targets (usage tracking)
 - [ ] Performance metrics (throughput, job duration)
 - [ ] Restore jobs monitoring
