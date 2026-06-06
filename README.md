@@ -387,7 +387,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Issues:** [GitHub Issues](https://github.com/YOUR_USERNAME/hycu-monitoring-plugin/issues)
 - **Documentation:** [Wiki](https://github.com/YOUR_USERNAME/hycu-monitoring-plugin/wiki)
-- **HYCU API Docs:** https://docs.hycu.com
+- **HYCU API Docs:** https://hycu.com
 
 ---
 
