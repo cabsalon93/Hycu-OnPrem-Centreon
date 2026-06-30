@@ -43,6 +43,9 @@ Professional monitoring plugin for HYCU backup infrastructure. Monitor VMs, poli
 ✅ **Single dependency** - Only the `requests` library (standard library otherwise)  
 ✅ **SSL verification disabled** - Works with self-signed certificates  
 
+<img width="1615" height="685" alt="image" src="https://github.com/user-attachments/assets/19afdd17-1eba-4e50-83f7-1bfdc4b06eba" />
+
+
 ## 🚀 Quick Start
 
 ### Prerequisites
